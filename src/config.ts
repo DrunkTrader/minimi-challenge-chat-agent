@@ -20,6 +20,8 @@ export const config = {
     gemini: process.env.GEMINI_API_KEY || "",
     groq: process.env.GROQ_API_KEY || "",
     openrouter: process.env.OPENROUTER_API_KEY || "",
+    openai: process.env.OPENAI_API_KEY || "",
+    deepseek: process.env.DEEPSEEK_API_KEY || "",
     tavily: process.env.TAVILY_API_KEY || "",
     exa: process.env.EXA_API_KEY || "",
   },
@@ -27,7 +29,10 @@ export const config = {
     groq: list(process.env.FAST_MODELS_GROQ, "openai/gpt-oss-20b,qwen/qwen3.8-27b,openai/gpt-oss-120b"),
     gemini: list(process.env.ANSWER_MODELS_GEMINI, "gemini-3.5-flash,gemini-flash-lite-latest,gemini-flash-latest"),
     openrouter: list(process.env.OPENROUTER_MODELS, "meta-llama/llama-3.3-70b-instruct:free"),
+    openai: list(process.env.OPENAI_MODELS, "gpt-5-mini,gpt-4.1-mini"),
+    deepseek: list(process.env.DEEPSEEK_MODELS, "deepseek-chat"),
   },
+  openaiBase: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
 };
 
 /**

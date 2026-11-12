@@ -18,7 +18,7 @@ function asset(pathname: string, res: ServerResponse) {
   const file = normalize(join(PUBLIC, decodeURIComponent(pathname)));
   const type = TYPES[extname(file)];
   if (!file.startsWith(join(PUBLIC, "assets")) || !type || !existsSync(file)) return false; // no traversal, known types only
-  res.writeHead(200, { "content-type": type, "cache-control": "public, max-age=3600" });
+  res.writeHead(200, { "content-type": type, "cache-control": "no-cache" });
   res.end(readFileSync(file));
   return true;
 }
@@ -29,6 +29,28 @@ async function body(req: IncomingMessage) {
   return JSON.parse(raw || "{}");
 }
 const json = (res: ServerResponse, code: number, data: unknown) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(data)); };
+
+/**
+ * Memory graph: conversations and the topics (entities) they touched. Topics are merged
+ * case-insensitively; a topic shared by two chats links them. Days are added by the client
+ * (it knows the user's timezone).
+ */
+function graph() {
+  const convs = q.conversations();
+  const ids = new Set(convs.map((c) => c.conversation_id));
+  const topics = new Map<string, { label: string; chats: Set<string> }>();
+  for (const { c, e } of q.graphPairs()) {
+    const label = String(e).trim();
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!ids.has(c) || !key || key.length > 40) continue;
+    if (!topics.has(key)) topics.set(key, { label, chats: new Set() });
+    topics.get(key)!.chats.add(c);
+  }
+  return {
+    chats: convs.map((c) => ({ id: c.conversation_id, label: c.title, started: c.started })),
+    topics: [...topics.entries()].map(([key, t]) => ({ id: `t:${key}`, label: t.label, chats: [...t.chats] })),
+  };
+}
 
 export function start() {
   if (isEmpty()) console.log(`Seeded ${seedDemo()} demo conversations (backdated) for testing memory.`);
@@ -41,6 +63,7 @@ export function start() {
       if (req.method === "GET" && url.pathname === "/api/status")
         return json(res, 200, { llm: hasLlm(), search: hasSearch(), now: clock.now().toISOString() });
       if (req.method === "GET" && url.pathname === "/api/conversations") return json(res, 200, q.conversations());
+      if (req.method === "GET" && url.pathname === "/api/graph") return json(res, 200, graph());
       if (req.method === "GET" && url.pathname.startsWith("/api/conversations/")) {
         const turns = q.conversation(decodeURIComponent(url.pathname.split("/").pop()!));
         return json(res, 200, turns.map((t) => ({ ...t, sources: t.role === "assistant" ? q.sourcesFor(t.id) : [] })));
@@ -71,7 +94,7 @@ export function start() {
   });
   server.listen(config.port, () => {
     console.log(`\n  minimi chat → http://localhost:${config.port}`);
-    if (!hasLlm()) console.log("  ! No LLM key: add GEMINI_API_KEY or GROQ_API_KEY to .env");
+    if (!hasLlm()) console.log("  ! No LLM key: add GEMINI_API_KEY, GROQ_API_KEY, OPENAI_API_KEY or DEEPSEEK_API_KEY to .env");
     if (!hasSearch()) console.log("  ! No search key: add TAVILY_API_KEY (or EXA_API_KEY) to .env");
   });
   return server;

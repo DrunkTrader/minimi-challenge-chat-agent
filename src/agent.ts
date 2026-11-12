@@ -93,7 +93,7 @@ export async function runTurn(input: { conversationId: string; message: string; 
   const now = clock.now();
   const nowLocal = formatLocal(now, tzOffset, true);
 
-  if (!hasLlm()) { emit({ type: "error", text: "No LLM key configured. Add GEMINI_API_KEY or GROQ_API_KEY to .env (see .env.example) and restart." }); return; }
+  if (!hasLlm()) { emit({ type: "error", text: "No LLM key configured. Add GEMINI_API_KEY, GROQ_API_KEY, OPENAI_API_KEY or DEEPSEEK_API_KEY to .env (see .env.example) and restart." }); return; }
 
   // 1-2. Dates and memory: pure code, ~1 ms.
   const range = refersToPast(message) ? resolveDate(message, now, tzOffset) : null;

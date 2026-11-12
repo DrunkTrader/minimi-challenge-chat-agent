@@ -12,7 +12,7 @@ cp .env.example .env   # add keys, all free tiers, no card
 npm run dev            # → http://localhost:3000
 ```
 
-Minimum keys: `GEMINI_API_KEY` or `GROQ_API_KEY`, plus `TAVILY_API_KEY`. Using both Gemini and Groq gives the fastest setup (Groq plans, Gemini answers) and each acts as the other's fallback.
+Minimum keys: one model key (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`) plus `TAVILY_API_KEY`. The free pair Gemini + Groq is the fastest setup (Groq plans, Gemini answers), and every key you add becomes a fallback. `OPENAI_BASE_URL` points the OpenAI slot at any compatible server (e.g. Ollama), and `LLM_ORDER_FAST` / `LLM_ORDER_ANSWER` choose which provider goes first.
 
 ## Try it
 
@@ -49,12 +49,14 @@ src/agent.ts    the turn: dates → memory → plan → web_search → streamed 
 src/memory.ts   recall by date range + FTS, prompt context, "no record" handling
 src/dates.ts    "last Tuesday" / "3 November" → local-day ranges (chrono-node, tz-aware)
 src/search.ts   the one tool: Tavily → Exa fallback, parallel, deduped, cached
-src/llm.ts      one OpenAI-compatible client for Groq / Gemini / OpenRouter with fallback chains
+src/llm.ts      one OpenAI-compatible client for Groq / Gemini / OpenAI (or any compatible server) / DeepSeek /
+                OpenRouter: per-role fallback chains, cooldown on 429/503, reasoning-param fallback
 src/db.ts       SQLite schema: turns (+FTS5), sources, claims, search_cache
 src/server.ts   node:http, NDJSON streaming
 public/         single-file UI: memory timeline, live pipeline tracker (memory → plan → search → answer → saved),
-                then-vs-now verdict blocks, source cards; public/assets: taste-skill motion layer + ascii-shade
-                effect (MIT, see public/assets/LICENSE-taste-skill)
+                then-vs-now verdict blocks, source cards, light/dark; public/assets/graph.js: Obsidian-style memory graph
+                (chats, topics, days; force layout, no library); public/assets/motion: taste-skill motion layer
+                (MIT, see public/assets/LICENSE-taste-skill)
 ```
 
 Design rationale: [DESIGN.md](DESIGN.md).

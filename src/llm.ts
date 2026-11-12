@@ -9,24 +9,45 @@ export type Msg = { role: "system" | "user" | "assistant"; content: string };
 type Link = { provider: string; base: string; key: string; model: string };
 
 const P = {
-  groq: { base: "https://api.groq.com/openai/v1", key: () => config.keys.groq, models: () => config.models.groq },
-  gemini: { base: "https://generativelanguage.googleapis.com/v1beta/openai", key: () => config.keys.gemini, models: () => config.models.gemini },
-  openrouter: { base: "https://openrouter.ai/api/v1", key: () => config.keys.openrouter, models: () => config.models.openrouter },
+  groq: { base: () => "https://api.groq.com/openai/v1", key: () => config.keys.groq, models: () => config.models.groq },
+  gemini: { base: () => "https://generativelanguage.googleapis.com/v1beta/openai", key: () => config.keys.gemini, models: () => config.models.gemini },
+  // OpenAI itself, or any OpenAI-compatible server (Azure, Together, Ollama, LM Studio…) via OPENAI_BASE_URL.
+  openai: { base: () => config.openaiBase, key: () => config.keys.openai, models: () => config.models.openai },
+  deepseek: { base: () => "https://api.deepseek.com/v1", key: () => config.keys.deepseek, models: () => config.models.deepseek },
+  openrouter: { base: () => "https://openrouter.ai/api/v1", key: () => config.keys.openrouter, models: () => config.models.openrouter },
 };
-type Name = keyof typeof P;
+export type Name = keyof typeof P;
+const NAMES = Object.keys(P) as Name[];
 
 function chain(order: Name[]): Link[] {
   return order.flatMap((name) => {
     const p = P[name];
-    return p.key() ? p.models().map((model) => ({ provider: name, base: p.base, key: p.key(), model })) : [];
+    return p.key() ? p.models().map((model) => ({ provider: name, base: p.base(), key: p.key(), model })) : [];
   });
 }
-/** Fast role: planner + memory extraction. Answer role: the user-facing reply. */
-export const roles = { fast: (): Link[] => chain(["groq", "gemini", "openrouter"]), answer: (): Link[] => chain(["gemini", "groq", "openrouter"]) };
+/** Provider order per role; LLM_ORDER_FAST / LLM_ORDER_ANSWER (comma lists) override it. Unlisted providers are appended. */
+const order = (env: string | undefined, d: Name[]): Name[] => {
+  const want = (env ?? "").split(",").map((s) => s.trim()).filter((s): s is Name => NAMES.includes(s as Name));
+  return [...new Set([...want, ...d, ...NAMES])];
+};
+/** Fast role: planner, memory extraction, small talk. Answer role: the grounded user-facing reply. */
+export const roles = {
+  fast: (): Link[] => chain(order(process.env.LLM_ORDER_FAST, ["groq", "openai", "deepseek", "gemini", "openrouter"])),
+  answer: (): Link[] => chain(order(process.env.LLM_ORDER_ANSWER, ["gemini", "openai", "deepseek", "groq", "openrouter"])),
+};
 export const hasLlm = () => roles.answer().length > 0;
 
 const dead = new Set<string>();           // models that returned 404 this process: skip for good
 const coolUntil = new Map<string, number>(); // 429 / 503 ("high demand"): skip for a minute instead of paying the wait every turn
+
+/** OpenAI's reasoning models (gpt-5*, o-series) take max_completion_tokens and only the default temperature. */
+function shape(l: Link, b: Record<string, unknown>) {
+  if (l.provider === "openai" && /^(gpt-5|o\d)/.test(l.model)) {
+    const { max_tokens, temperature, ...rest } = b;
+    return { ...rest, max_completion_tokens: max_tokens };
+  }
+  return b;
+}
 
 async function request(links: Link[], body: Record<string, unknown>, timeoutMs: number) {
   const errors: string[] = [];
@@ -48,7 +69,7 @@ async function request(links: Link[], body: Record<string, unknown>, timeoutMs: 
       const res = await fetch(`${l.base}/chat/completions`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${l.key}` },
-        body: JSON.stringify({ model: l.model, ...body, ...extra }),
+        body: JSON.stringify(shape(l, { model: l.model, ...body, ...extra })),
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok) return { res, link: l };

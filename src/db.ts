@@ -84,6 +84,12 @@ export const q = {
     `SELECT conversation_id, MIN(created_at) AS started, (SELECT content FROM turns t2 WHERE t2.conversation_id = t.conversation_id AND role='user' ORDER BY id LIMIT 1) AS title
      FROM turns t GROUP BY conversation_id ORDER BY started DESC LIMIT 50`).all() as { conversation_id: string; started: string; title: string }[],
   conversation: (id: string) => getDb().prepare(`SELECT * FROM turns WHERE conversation_id = ? ORDER BY id`).all(id) as Turn[],
+  /** Raw material for the memory graph: which entities each conversation touched (planner + extracted facts). */
+  graphPairs: () => [
+    ...(getDb().prepare(`SELECT conversation_id AS c, entities AS e FROM turns WHERE role = 'user' AND entities IS NOT NULL`).all() as { c: string; e: string }[])
+      .flatMap((r) => { try { return (JSON.parse(r.e) as string[]).map((e) => ({ c: r.c, e })); } catch { return []; } }),
+    ...(getDb().prepare(`SELECT DISTINCT t.conversation_id AS c, cl.entity AS e FROM claims cl JOIN turns t ON t.id = cl.turn_id`).all() as { c: string; e: string }[]),
+  ],
   cacheGet: (key: string) => getDb().prepare(`SELECT * FROM search_cache WHERE key = ?`).get(key) as { results: string; fetched_at: string } | undefined,
   cachePut: (key: string, results: string, at: string) =>
     getDb().prepare(`INSERT OR REPLACE INTO search_cache (key, results, fetched_at) VALUES (?,?,?)`).run(key, results, at),
