@@ -1,4 +1,6 @@
 import { config } from "./config.js";
+import * as settings from "./settings.js";
+import type { Llm } from "./settings.js";
 
 /**
  * One small client for every provider: Groq, Gemini and OpenRouter all speak the
@@ -8,33 +10,37 @@ import { config } from "./config.js";
 export type Msg = { role: "system" | "user" | "assistant"; content: string };
 type Link = { provider: string; base: string; key: string; model: string };
 
-const P = {
-  groq: { base: () => "https://api.groq.com/openai/v1", key: () => config.keys.groq, models: () => config.models.groq },
-  gemini: { base: () => "https://generativelanguage.googleapis.com/v1beta/openai", key: () => config.keys.gemini, models: () => config.models.gemini },
-  // OpenAI itself, or any OpenAI-compatible server (Azure, Together, Ollama, LM Studio…) via OPENAI_BASE_URL.
-  openai: { base: () => config.openaiBase, key: () => config.keys.openai, models: () => config.models.openai },
-  deepseek: { base: () => "https://api.deepseek.com/v1", key: () => config.keys.deepseek, models: () => config.models.deepseek },
-  openrouter: { base: () => "https://openrouter.ai/api/v1", key: () => config.keys.openrouter, models: () => config.models.openrouter },
+// Keys, models and order come from settings (UI over .env), read on every call so changes apply instantly.
+const P: Record<Llm, { base: () => string }> = {
+  groq: { base: () => "https://api.groq.com/openai/v1" },
+  gemini: { base: () => "https://generativelanguage.googleapis.com/v1beta/openai" },
+  // OpenAI itself, or any OpenAI-compatible server (Azure, Together, Ollama, LM Studio…) via its base URL.
+  openai: { base: () => settings.openaiBase() },
+  deepseek: { base: () => "https://api.deepseek.com/v1" },
+  openrouter: { base: () => "https://openrouter.ai/api/v1" },
 };
-export type Name = keyof typeof P;
-const NAMES = Object.keys(P) as Name[];
+type Name = Llm;
 
 function chain(order: Name[]): Link[] {
   return order.flatMap((name) => {
     const p = P[name];
-    return p.key() ? p.models().map((model) => ({ provider: name, base: p.base(), key: p.key(), model })) : [];
+    const key = settings.key(name);
+    return key ? settings.models(name).map((model) => ({ provider: name, base: p.base(), key, model })) : [];
   });
 }
-/** Provider order per role; LLM_ORDER_FAST / LLM_ORDER_ANSWER (comma lists) override it. Unlisted providers are appended. */
-const order = (env: string | undefined, d: Name[]): Name[] => {
-  const want = (env ?? "").split(",").map((s) => s.trim()).filter((s): s is Name => NAMES.includes(s as Name));
-  return [...new Set([...want, ...d, ...NAMES])];
-};
-/** Fast role: planner, memory extraction, small talk. Answer role: the grounded user-facing reply. */
+/** Fast role: planner, memory extraction, small talk. Answer role: the grounded reply. Order: Settings → LLM_ORDER_* → default. */
 export const roles = {
-  fast: (): Link[] => chain(order(process.env.LLM_ORDER_FAST, ["groq", "openai", "deepseek", "gemini", "openrouter"])),
-  answer: (): Link[] => chain(order(process.env.LLM_ORDER_ANSWER, ["gemini", "openai", "deepseek", "groq", "openrouter"])),
+  fast: (): Link[] => chain(settings.order("fast")),
+  answer: (): Link[] => chain(settings.order("answer")),
 };
+
+/** Settings "Test" button: one tiny request through a single provider's chain. */
+export async function testLlm(name: Llm) {
+  const t = Date.now();
+  const { res, link } = await request(chain([name]), { messages: [{ role: "user", content: "Reply with: ok" }], max_tokens: 20, temperature: 0 }, 15_000);
+  await res.text();
+  return { ok: true, ms: Date.now() - t, model: link.model };
+}
 export const hasLlm = () => roles.answer().length > 0;
 
 const dead = new Set<string>();           // models that returned 404 this process: skip for good

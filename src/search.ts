@@ -1,4 +1,6 @@
-import { config, clock } from "./config.js";
+import { clock } from "./config.js";
+import * as settings from "./settings.js";
+import type { Search } from "./settings.js";
 import { q } from "./db.js";
 
 /**
@@ -12,7 +14,7 @@ const TTL_MS = 30 * 60_000;
 async function tavily(query: string, recentDays?: number): Promise<SearchResult[]> {
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${config.keys.tavily}` },
+    headers: { "content-type": "application/json", authorization: `Bearer ${settings.key("tavily")}` },
     body: JSON.stringify({ query, max_results: 5, search_depth: "basic", ...(recentDays ? { days: recentDays, topic: "news" } : {}) }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -24,7 +26,7 @@ async function tavily(query: string, recentDays?: number): Promise<SearchResult[
 async function exa(query: string): Promise<SearchResult[]> {
   const res = await fetch("https://api.exa.ai/search", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": config.keys.exa },
+    headers: { "content-type": "application/json", "x-api-key": settings.key("exa") },
     body: JSON.stringify({ query, numResults: 5, contents: { text: { maxCharacters: 1200 } } }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -33,14 +35,23 @@ async function exa(query: string): Promise<SearchResult[]> {
   return j.results.map((r) => ({ title: r.title, url: r.url, content: r.text ?? "", published_at: r.publishedDate ?? null }));
 }
 
-export const hasSearch = () => Boolean(config.keys.tavily || config.keys.exa);
+export const hasSearch = () => settings.SEARCHES.some((p) => settings.key(p));
+
+/** Settings "Test" button: one uncached query through a single provider. */
+export async function testSearch(p: Search) {
+  if (!settings.key(p)) throw new Error("No key set");
+  const t = Date.now();
+  const r = await (p === "tavily" ? tavily("node.js lts version") : exa("node.js lts version"));
+  return { ok: true, ms: Date.now() - t, model: `${r.length} results` };
+}
 
 export async function webSearch(query: string, opts: { recentDays?: number } = {}): Promise<{ results: SearchResult[]; cached: boolean }> {
   const key = `${query.toLowerCase().replace(/\s+/g, " ").trim()}|${opts.recentDays ?? ""}`;
   const hit = q.cacheGet(key);
   if (hit && clock.now().getTime() - new Date(hit.fetched_at).getTime() < TTL_MS) return { results: JSON.parse(hit.results), cached: true };
 
-  const providers = [config.keys.tavily && (() => tavily(query, opts.recentDays)), config.keys.exa && (() => exa(query))].filter(Boolean) as (() => Promise<SearchResult[]>)[];
+  const run: Record<Search, () => Promise<SearchResult[]>> = { tavily: () => tavily(query, opts.recentDays), exa: () => exa(query) };
+  const providers = settings.searchOrder().filter((p) => settings.key(p)).map((p) => run[p]); // Settings order, keyed ones only
   if (!providers.length) throw new Error("No search API key configured (see .env.example)");
   let lastErr: unknown;
   for (const run of providers) {

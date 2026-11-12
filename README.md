@@ -14,6 +14,8 @@ npm run dev            # → http://localhost:3000
 
 Minimum keys: one model key (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`) plus `TAVILY_API_KEY`. The free pair Gemini + Groq is the fastest setup (Groq plans, Gemini answers), and every key you add becomes a fallback. `OPENAI_BASE_URL` points the OpenAI slot at any compatible server (e.g. Ollama), and `LLM_ORDER_FAST` / `LLM_ORDER_ANSWER` choose which provider goes first.
 
+You can also manage keys in the app: **⚙ Settings** (bottom of the sidebar) adds, tests, disables or removes a key for each provider, edits model lists, and sets the fallback order separately for answers, the planner and web search. Keys set there go to `data/settings.json` (git-ignored, owner-only) and override `.env`. The API only ever returns a mask like `…3f9a`, and settings accept requests only from this machine and this page.
+
 ## Try it
 
 On first start the app **seeds backdated demo history** so memory can be tested right away (see "Demo history" in the sidebar):

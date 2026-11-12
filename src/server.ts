@@ -6,8 +6,9 @@ import { randomUUID } from "node:crypto";
 import { config, clock } from "./config.js";
 import { q } from "./db.js";
 import { runTurn, type AgentEvent } from "./agent.js";
-import { hasLlm } from "./llm.js";
-import { hasSearch } from "./search.js";
+import { hasLlm, testLlm } from "./llm.js";
+import { hasSearch, testSearch } from "./search.js";
+import * as settings from "./settings.js";
 import { seedDemo, isEmpty } from "./seed.js";
 
 /** Plain node:http: JSON routes, one streaming route, the page and its static assets. */
@@ -29,6 +30,14 @@ async function body(req: IncomingMessage) {
   return JSON.parse(raw || "{}");
 }
 const json = (res: ServerResponse, code: number, data: unknown) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(data)); };
+
+const loopback = (req: IncomingMessage) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress ?? "");
+/** A browser always sends Origin on cross-site POSTs; when present it must match the Host we were reached on. */
+function sameOrigin(req: IncomingMessage) {
+  const origin = req.headers.origin;
+  if (!origin) return true; // curl, scripts, the eval runner
+  try { return new URL(origin).host === req.headers.host; } catch { return false; }
+}
 
 /**
  * Memory graph: conversations and the topics (entities) they touched. Topics are merged
@@ -67,6 +76,25 @@ export function start() {
       if (req.method === "GET" && url.pathname.startsWith("/api/conversations/")) {
         const turns = q.conversation(decodeURIComponent(url.pathname.split("/").pop()!));
         return json(res, 200, turns.map((t) => ({ ...t, sources: t.role === "assistant" ? q.sourcesFor(t.id) : [] })));
+      }
+      // Every write must come from this machine and this page: blocks other websites (CSRF) and the LAN.
+      if (req.method === "POST" && !sameOrigin(req)) return json(res, 403, { error: "forbidden" });
+      if (url.pathname === "/api/settings" && req.method === "GET") {
+        if (!loopback(req)) return json(res, 403, { error: "settings are only available on this machine" });
+        return json(res, 200, settings.view());
+      }
+      if (url.pathname === "/api/settings" && req.method === "POST") {
+        if (!loopback(req)) return json(res, 403, { error: "settings are only available on this machine" });
+        try { return json(res, 200, settings.update(await body(req))); } catch (e) { return json(res, 400, { error: (e as Error).message }); }
+      }
+      if (url.pathname === "/api/settings/test" && req.method === "POST") {
+        if (!loopback(req)) return json(res, 403, { error: "forbidden" });
+        const { provider } = await body(req);
+        try {
+          if ((settings.LLMS as readonly string[]).includes(provider)) return json(res, 200, await testLlm(provider));
+          if ((settings.SEARCHES as readonly string[]).includes(provider)) return json(res, 200, await testSearch(provider));
+          return json(res, 400, { ok: false, error: "unknown provider" });
+        } catch (e) { return json(res, 200, { ok: false, error: String((e as Error).message).slice(0, 300) }); }
       }
       if (req.method === "POST" && url.pathname === "/api/seed") {
         const b = await body(req);

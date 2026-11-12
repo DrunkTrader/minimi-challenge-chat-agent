@@ -125,15 +125,20 @@ export class MemoryGraph {
       }
     }
     // labels: days always, shared topics always, everything next to the hovered node
+    // labels by priority (hovered neighbourhood, days, most-shared topics); one that would overlap is skipped
     ctx.textAlign = "center"; ctx.textBaseline = "top";
-    for (const n of this.nodes) {
-      const show = n.kind === "day" || (n.kind === "topic" && (n.deg > 1 || near?.has(n))) || (near?.has(n) && n.kind !== "chat");
-      if (!show) continue;
-      ctx.globalAlpha = near && !near.has(n) ? 0.2 : 1;
+    const rank = (n) => (near?.has(n) ? 0 : n.kind === "day" ? 1 : 2 + 1 / (n.deg + 1));
+    const want = this.nodes.filter((n) => n.kind === "day" || (n.kind === "topic" && (n.deg > 1 || near?.has(n))) || (near?.has(n) && n.kind !== "chat"));
+    const boxes = [];
+    for (const n of want.sort((a, b) => rank(a) - rank(b))) {
       ctx.font = n.kind === "day" ? `500 10px ${c.mono}` : `500 11px Inter, system-ui, sans-serif`;
-      ctx.fillStyle = n.kind === "day" ? c.muted : c.ink;
       const text = n.label.length > 22 ? n.label.slice(0, 21) + "…" : n.label;
-      ctx.fillText(text, n.x, n.y + n.r + 5);
+      const tw = ctx.measureText(text).width, x = n.x - tw / 2 - 2, y = n.y + n.r + 4, bw = tw + 4, bh = 14;
+      if (boxes.some((b) => x < b.x + b.w && x + bw > b.x && y < b.y + b.h && y + bh > b.y)) continue;
+      boxes.push({ x, y, w: bw, h: bh });
+      ctx.globalAlpha = near && !near.has(n) ? 0.2 : 1;
+      ctx.fillStyle = n.kind === "day" ? c.muted : c.ink;
+      ctx.fillText(text, n.x, y + 1);
     }
     ctx.globalAlpha = 1;
   }
