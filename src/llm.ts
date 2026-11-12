@@ -25,14 +25,19 @@ function chain(order: Name[]): Link[] {
 export const roles = { fast: (): Link[] => chain(["groq", "gemini", "openrouter"]), answer: (): Link[] => chain(["gemini", "groq", "openrouter"]) };
 export const hasLlm = () => roles.answer().length > 0;
 
-const dead = new Set<string>(); // models that returned 404 this process: skip next time
+const dead = new Set<string>();           // models that returned 404 this process: skip for good
+const coolUntil = new Map<string, number>(); // 429 / 503 ("high demand"): skip for a minute instead of paying the wait every turn
 
 async function request(links: Link[], body: Record<string, unknown>, timeoutMs: number) {
   const errors: string[] = [];
-  for (const l of links) {
+  const usable = links.filter((l) => !dead.has(`${l.provider}:${l.model}`));
+  const fresh = usable.filter((l) => (coolUntil.get(`${l.provider}:${l.model}`) ?? 0) < Date.now());
+  for (const l of fresh.length ? fresh : usable) {
     const id = `${l.provider}:${l.model}`;
-    if (dead.has(id)) continue;
-    const extra = l.model.includes("gpt-oss") ? { reasoning_effort: "low" } : {};
+    // Thinking costs latency: measured on Gemini 3.5 Flash, first token 43 s by default vs 1.4 s with
+    // reasoning off. Answers are grounded in search results, so default to none (GEMINI_REASONING to change).
+    const extra = l.model.includes("gpt-oss") ? { reasoning_effort: "low" }
+      : l.provider === "gemini" && config.geminiReasoning !== "default" ? { reasoning_effort: config.geminiReasoning } : {};
     try {
       const res = await fetch(`${l.base}/chat/completions`, {
         method: "POST",
@@ -42,7 +47,8 @@ async function request(links: Link[], body: Record<string, unknown>, timeoutMs: 
       });
       if (res.ok) return { res, link: l };
       const text = (await res.text()).slice(0, 200);
-      if (res.status === 404 || /not.?found|decommission|does not exist/i.test(text)) dead.add(id);
+      if (res.status === 404 || /not.?found|decommission|does not exist|no longer available/i.test(text)) dead.add(id);
+      else if (res.status === 429 || res.status >= 500) coolUntil.set(id, Date.now() + 60_000);
       errors.push(`${id} → ${res.status} ${text}`);
     } catch (e) {
       errors.push(`${id} → ${(e as Error).message}`);

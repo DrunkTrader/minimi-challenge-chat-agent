@@ -15,6 +15,7 @@ const list = (v: string | undefined, d: string) => (v || d).split(",").map((s) =
 export const config = {
   port: Number(process.env.PORT || 3000),
   dbPath: process.env.DB_PATH || "data/memory.db",
+  geminiReasoning: process.env.GEMINI_REASONING || "none", // none | low | medium | high | default
   keys: {
     gemini: process.env.GEMINI_API_KEY || "",
     groq: process.env.GROQ_API_KEY || "",
@@ -24,7 +25,7 @@ export const config = {
   },
   models: {
     groq: list(process.env.FAST_MODELS_GROQ, "openai/gpt-oss-20b,llama-3.3-70b-versatile,llama-3.1-8b-instant"),
-    gemini: list(process.env.ANSWER_MODELS_GEMINI, "gemini-flash-latest,gemini-2.5-flash"),
+    gemini: list(process.env.ANSWER_MODELS_GEMINI, "gemini-3.5-flash,gemini-flash-lite-latest,gemini-flash-latest"),
     openrouter: list(process.env.OPENROUTER_MODELS, "meta-llama/llama-3.3-70b-instruct:free"),
   },
 };
