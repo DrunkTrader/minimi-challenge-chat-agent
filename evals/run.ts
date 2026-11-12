@@ -55,7 +55,7 @@ for (const c of cases) {
 const pct = (xs: number[], p: number) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? 0; };
 const firsts = rows.map((r) => r.first).filter(Boolean), totals = rows.map((r) => r.total).filter(Boolean);
 const passed = rows.filter((r) => r.pass).length;
-const md = `# Eval results\n\nRun: ${now.toISOString()} · ${passed}/${rows.length} passed · first token p50 ${pct(firsts, 0.5)}ms / p95 ${pct(firsts, 0.95)}ms · total p50 ${pct(totals, 0.5)}ms\n\n| case | pass | first token | total | answered by | notes |\n|---|---|---|---|---|---|\n${rows.map((r) => `| ${r.id} | ${r.pass ? "✓" : "✗"} | ${r.first}ms | ${r.total}ms | ${r.model} | ${r.why} |`).join("\n")}\n`;
+const md = `# Eval results\n\nRun: ${now.toISOString()} · ${passed}/${rows.length} passed · first token p50 ${pct(firsts, 0.5)}ms / p95 ${pct(firsts, 0.95)}ms · total p50 ${pct(totals, 0.5)}ms\n\n| case | pass | first token | total | answered by | notes |\n|---|---|---|---|---|---|\n${rows.map((r) => `| ${r.id} | ${r.pass ? "pass" : "FAIL"} | ${r.first}ms | ${r.total}ms | ${r.model} | ${r.why} |`).join("\n")}\n`;
 writeFileSync(new URL("./results.md", import.meta.url), md);
 console.log(`\n${passed}/${rows.length} passed → evals/results.md`);
 try { rmSync(dbPath, { force: true }); } catch { /* windows may hold the file */ }

@@ -6,17 +6,17 @@ A chat agent with one tool, **web search**, that answers fast, cites its sources
 
 ## Run it
 
-Requires Node ≥ 22.13 (uses the built-in `node:sqlite`, so there are no native installs).
+Requires Node >= 22.13 (uses the built-in `node:sqlite`, so there are no native installs).
 
 ```bash
 npm install
 cp .env.example .env   # add keys, all free tiers, no card
-npm run dev            # → http://localhost:3000
+npm run dev            # -> http://localhost:3000
 ```
 
 Minimum keys: one model key (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`) plus `TAVILY_API_KEY`. The free pair Gemini + Groq is the fastest setup (Groq plans, Gemini answers), and every key you add becomes a fallback. `OPENAI_BASE_URL` points the OpenAI slot at any compatible server (e.g. Ollama), and `LLM_ORDER_FAST` / `LLM_ORDER_ANSWER` choose which provider goes first.
 
-You can also manage keys in the app: **⚙ Settings** (bottom of the sidebar) adds, tests, disables or removes a key for each provider, edits model lists, and sets the fallback order separately for answers, the planner and web search. Keys set there go to `data/settings.json` (git-ignored, owner-only) and override `.env`. The API only ever returns a mask like `…3f9a`, and settings accept requests only from this machine and this page.
+You can also manage keys in the app: the **Settings** button (gear icon, bottom of the sidebar) adds, tests, disables or removes a key for each provider, edits model lists, and sets the fallback order separately for answers, the planner and web search. Keys set there go to `data/settings.json` (git-ignored, owner-only) and override `.env`. The API only ever returns a mask like `…3f9a`, and settings accept requests only from this machine and this page.
 
 ## Try it
 
@@ -54,22 +54,22 @@ The per-case table, including which model answered each case, is in [evals/resul
 |---|---|
 | `npm run dev` | server + UI with reload |
 | `npm test` | date resolution + memory retrieval tests (no keys needed) |
-| `npm run eval` | end-to-end eval of 11 cases with real models + search → `evals/results.md` |
+| `npm run eval` | end-to-end eval of 11 cases with real models + search -> `evals/results.md` |
 | `npm run seed` | re-create the demo history |
 | `npm run typecheck` | `tsc --noEmit` |
 
 ## Layout
 
 ```
-src/agent.ts    the turn: dates → memory → plan → web_search → streamed answer → fact extraction
+src/agent.ts    the turn: dates -> memory -> plan -> web_search -> streamed answer -> fact extraction
 src/memory.ts   recall by date range + FTS, prompt context, "no record" handling
-src/dates.ts    "last Tuesday" / "3 November" → local-day ranges (chrono-node, tz-aware)
-src/search.ts   the one tool: Tavily → Exa fallback, parallel, deduped, cached
+src/dates.ts    "last Tuesday" / "3 November" -> local-day ranges (chrono-node, tz-aware)
+src/search.ts   the one tool: Tavily -> Exa fallback, parallel, deduped, cached
 src/llm.ts      one OpenAI-compatible client for Groq / Gemini / OpenAI (or any compatible server) / DeepSeek /
                 OpenRouter: per-role fallback chains, cooldown on 429/503, reasoning-param fallback
 src/db.ts       SQLite schema: turns (+FTS5), sources, claims, search_cache
 src/server.ts   node:http, NDJSON streaming
-public/         single-file UI: memory timeline, live pipeline tracker (memory → plan → search → answer → saved),
+public/         single-file UI: memory timeline, live pipeline tracker (memory -> plan -> search -> answer -> saved),
                 then-vs-now verdict blocks, source cards, light/dark; public/assets/graph.js: Obsidian-style memory graph
                 (chats, topics, days; force layout, no library); public/assets/motion: taste-skill motion layer
                 (MIT, see public/assets/LICENSE-taste-skill)

@@ -25,7 +25,7 @@ flowchart TB
 
 ## Why this way
 
-- **Speed:** memory is ~1 ms of SQL, there's one small planning call, searches run in parallel, the answer streams, and the memory write happens after the reply. There's no model → tool → model loop. Measured on free tiers (11 eval cases): first word p50 **3.1 s** and p95 **5.4 s** with search, **0.9 s** for small talk.
+- **Speed:** memory is ~1 ms of SQL, there's one small planning call, searches run in parallel, the answer streams, and the memory write happens after the reply. There's no model -> tool -> model loop. Measured on free tiers (11 eval cases): first word p50 **3.1 s** and p95 **5.4 s** with search, **0.9 s** for small talk.
 - **Reliability on free tiers:** one OpenAI-compatible client covers Gemini, Groq, OpenAI (or any compatible server), DeepSeek and OpenRouter, with a fallback order per role. A model that hasn't answered in 12 s, or produced its first token in 15 s, is put on cooldown and the next one takes over. Retired model names are dropped. Keys and order can be set in a Settings page, and the API never returns them.
 - **Correctness you can test:** dates and recall are code (`npm test`, 13 tests), and `npm run eval` runs 11 end-to-end cases with deterministic checks: searched? cited? said "no record"? stated the date it used?
 - **Runs anywhere:** built-in `node:sqlite` (no native build, no database server) and a single-file UI. The memory graph is ~200 lines of canvas, with no library.
@@ -41,7 +41,7 @@ flowchart TB
 
 ## With another week
 
-- **Proactive re-checks:** "watch these 5 CRMs" → a scheduled re-search → a nudge only when a fact actually changes. That's minimi's core loop.
+- **Proactive re-checks:** "watch these 5 CRMs" -> a scheduled re-search -> a nudge only when a fact actually changes. That's minimi's core loop.
 - Bi-temporal claims (valid-from / superseded-at), so "what was true on 3 Nov" is a query, not a prompt.
 - Embeddings for fuzzy recall, a reranker, and a second search round when sources disagree.
 - 30+ eval cases with an LLM judge, CI on every commit, and per-step latency tracing.
