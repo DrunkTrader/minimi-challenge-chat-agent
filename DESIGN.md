@@ -5,7 +5,7 @@
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     U([User message]) --> D["Dates: resolved in code<br/>(chrono-node, user's timezone)"]
     D --> M[("Memory: SQLite<br/>turns + FTS5 · claims · sources")]
     M -->|exact past Q&A + facts recorded then| P["Planner: fast LLM, JSON<br/>intent · queries · entities"]
