@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>minimi chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Palette taken from projectminimi.com: black canvas, soft greys, hairline white borders, sky-blue accent. */
+  :root {
+    --bg: #000; --panel: #0d0d0d; --card: #1c1c1c; --card-2: #262626;
+    --line: rgba(255,255,255,.08); --text: #fff; --text-2: rgba(255,255,255,.8); --muted: #999;
+    --accent: rgb(110,194,255); --link: #0099ff; --warm: #e6e4df;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.55 Inter, Roboto, system-ui, sans-serif; letter-spacing: -.01em; display: flex; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  aside { width: 270px; flex-shrink: 0; border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
+  .brand { padding: 20px 18px 14px; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -.03em; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 14px var(--accent); }
+  .new { margin: 0 14px 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); text-align: left; }
+  .new:hover { background: var(--card-2); }
+  .convs { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
+  .convs h4 { margin: 14px 10px 6px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .conv { display: block; width: 100%; border: 0; background: none; text-align: left; padding: 8px 10px; border-radius: 8px; color: var(--text-2); }
+  .conv:hover, .conv.active { background: var(--card); color: var(--text); }
+  .conv small { display: block; color: var(--muted); font-size: 11.5px; }
+  .conv span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+  .foot { padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: grid; gap: 6px; }
+  .foot button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--text-2); font-size: 12px; }
+  .pill { display: inline-flex; gap: 6px; align-items: center; } .pill i { width: 7px; height: 7px; border-radius: 50%; background: #555; display: inline-block; } .pill i.ok { background: #4ade80; } .pill i.bad { background: #f87171; }
+
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #log { flex: 1; overflow-y: auto; padding: 28px 16px 12px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .empty { text-align: center; margin-top: 12vh; }
+  .empty h1 { font-size: 34px; font-weight: 600; letter-spacing: -.04em; margin: 0 0 6px; }
+  .empty p { color: var(--muted); margin: 0 0 22px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text-2); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; }
+  .chip:hover { background: var(--card-2); color: var(--text); }
+
+  .msg { margin: 0 0 22px; }
+  .msg.user .bubble { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin-left: auto; width: fit-content; max-width: 85%; white-space: pre-wrap; }
+  .meta { font-size: 11.5px; color: var(--muted); margin: 0 0 4px; } .msg.user .meta { text-align: right; }
+  .bubble.bot { color: var(--text-2); } .bubble.bot strong { color: var(--text); }
+  .bubble.bot table { border-collapse: collapse; margin: 10px 0; font-size: 13.5px; width: 100%; }
+  .bubble.bot th, .bubble.bot td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; } .bubble.bot th { background: var(--card); color: var(--text); font-weight: 500; }
+  .bubble.bot code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  .bubble.bot p { margin: 0 0 10px; } .bubble.bot ul, .bubble.bot ol { margin: 0 0 10px; padding-left: 20px; }
+  .cite { font-size: 11px; vertical-align: super; color: var(--accent); padding: 0 1px; }
+  .status { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite alternate; }
+  @keyframes pulse { from { opacity: .25 } to { opacity: 1 } }
+  .mem { border: 1px solid var(--line); border-left: 2px solid var(--warm); background: var(--panel); border-radius: 10px; padding: 8px 12px; font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
+  .mem b { color: var(--warm); font-weight: 500; }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+  .src { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 4px 9px; font-size: 12px; color: var(--text-2); max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .src b { color: var(--accent); font-weight: 500; margin-right: 4px; }
+  .timing { font-size: 11px; color: #666; margin-top: 6px; }
+  .err { color: #fca5a5; border: 1px solid rgba(248,113,113,.3); background: rgba(248,113,113,.06); border-radius: 10px; padding: 8px 12px; font-size: 13.5px; }
+
+  form { padding: 12px 16px 18px; }
+  .box { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 8px 8px 8px 14px; }
+  .box:focus-within { border-color: rgba(110,194,255,.45); }
+  textarea { flex: 1; background: none; border: 0; outline: 0; color: var(--text); font: inherit; resize: none; max-height: 160px; padding: 6px 0; }
+  .send { background: var(--text); color: #000; border: 0; border-radius: 11px; padding: 0 16px; font-weight: 500; }
+  .send:disabled { opacity: .35; cursor: default; }
+  .hint { max-width: 760px; margin: 6px auto 0; font-size: 11.5px; color: #666; text-align: center; }
+  .menu { display: none; }
+  @media (max-width: 760px) {
+    aside { position: fixed; inset: 0 auto 0 0; z-index: 5; transform: translateX(-100%); transition: transform .2s; }
+    aside.open { transform: none; }
+    .menu { display: inline-block; position: fixed; top: 10px; left: 10px; z-index: 6; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+    #log { padding-top: 52px; }
+  }
+</style>
+</head>
+<body>
+<button class="menu" onclick="document.querySelector('aside').classList.toggle('open')" aria-label="Menu">☰</button>
+<aside>
+  <div class="brand"><span class="dot"></span>minimi chat</div>
+  <button class="new" id="new">＋ New chat</button>
+  <div class="convs" id="convs"></div>
+  <div class="foot">
+    <div><span class="pill"><i id="llm"></i>LLM</span> &nbsp; <span class="pill"><i id="search"></i>Web search</span></div>
+    <div id="clock"></div>
+    <button id="reseed" title="Re-create backdated demo conversations relative to today">Reset demo history</button>
+  </div>
+</aside>
+<main>
+  <div id="log"><div class="wrap" id="thread"></div></div>
+  <form id="form">
+    <div class="box">
+      <textarea id="input" rows="1" placeholder="Ask anything, or ask about something you asked before…" autofocus></textarea>
+      <button class="send" id="send" disabled>Send</button>
+    </div>
+    <div class="hint">One tool: web search. Remembers what you asked, and when.</div>
+  </form>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const tzOffset = new Date().getTimezoneOffset();
+let conversationId = null, busy = false;
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (iso, time = true) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", ...(time ? { hour: "2-digit", minute: "2-digit" } : {}) });
+
+/** Minimal, safe markdown: escape first, then bold/italic/code/links/lists/tables/citations. */
+function md(src, sources = []) {
+  const inline = (t) => t
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)*]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[(\d{1,2})\]/g, (m, n) => { const s = sources[n - 1]; return s ? `<a class="cite" href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title || s.url)}">[${n}]</a>` : `<span class="cite">[${n}]</span>`; });
+  const lines = esc(src).split("\n");
+  let out = "", i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^\s*\|.*\|\s*$/.test(l)) {
+      const rows = []; while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(lines[i++]);
+      const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+      const body = rows.filter((r) => !/^\s*\|[\s:|-]+\|\s*$/.test(r));
+      out += "<table><tr>" + cells(body[0]).map((c) => `<th>${c}</th>`).join("") + "</tr>" + body.slice(1).map((r) => "<tr>" + cells(r).map((c) => `<td>${c}</td>`).join("") + "</tr>").join("") + "</table>";
+      continue;
+    }
+    if (/^\s*([-*]|\d+\.)\s+/.test(l)) {
+      const ordered = /^\s*\d+\./.test(l), items = [];
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(inline(lines[i++].replace(/^\s*([-*]|\d+\.)\s+/, "")));
+      out += `<${ordered ? "ol" : "ul"}>` + items.map((x) => `<li>${x}</li>`).join("") + `</${ordered ? "ol" : "ul"}>`;
+      continue;
+    }
+    if (/^#{1,4}\s/.test(l)) { out += `<p><strong>${inline(l.replace(/^#+\s/, ""))}</strong></p>`; i++; continue; }
+    if (l.trim()) { const para = []; while (i < lines.length && lines[i].trim() && !/^\s*(\||[-*]\s|\d+\.\s|#)/.test(lines[i])) para.push(inline(lines[i++])); out += `<p>${para.join("<br>")}</p>`; continue; }
+    i++;
+  }
+  return out;
+}
+
+function addMsg(role, html, when) {
+  $("#thread").querySelector(".empty")?.remove();
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.innerHTML = `<div class="meta">${role === "user" ? "You" : "minimi"} · ${fmt(when || new Date().toISOString())}</div>` + (role === "user" ? `<div class="bubble">${esc(html)}</div>` : `<div class="extra"></div><div class="bubble bot">${html}</div><div class="after"></div>`);
+  $("#thread").appendChild(el);
+  $("#log").scrollTop = $("#log").scrollHeight;
+  return el;
+}
+const sourcesHtml = (s) => s.length ? `<div class="sources">${s.map((x) => `<a class="src" href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.url)}"><b>${x.n}</b>${esc(x.title || new URL(x.url).hostname)}</a>`).join("")}</div>` : "";
+
+function emptyState() {
+  const ex = ["What did I ask you on 3 November? Is your answer still correct today?", "On Monday we shortlisted 5 CRM tools for our sales team. Has any of them changed pricing since?", "Last Tuesday I asked you about Postgres hosting. Has any pricing changed since then?", "What's new in Node.js this month?"];
+  $("#thread").innerHTML = `<div class="empty"><h1>What's on your mind?</h1><p>Fast answers with sources, and a memory of what you asked and when.</p><div class="chips">${ex.map((e) => `<button class="chip">${esc(e)}</button>`).join("")}</div></div>`;
+  document.querySelectorAll(".chip").forEach((c) => c.onclick = () => { $("#input").value = c.textContent; send(); });
+}
+
+async function loadConvs() {
+  const list = await (await fetch("/api/conversations")).json();
+  const demo = list.filter((c) => c.conversation_id.startsWith("demo-")), mine = list.filter((c) => !c.conversation_id.startsWith("demo-"));
+  const item = (c) => `<button class="conv ${c.conversation_id === conversationId ? "active" : ""}" data-id="${esc(c.conversation_id)}"><small>${fmt(c.started)}</small><span>${esc(c.title || "…")}</span></button>`;
+  $("#convs").innerHTML = (mine.length ? `<h4>Your chats</h4>${mine.map(item).join("")}` : "") + (demo.length ? `<h4>Demo history (backdated)</h4>${demo.map(item).join("")}` : "");
+  document.querySelectorAll(".conv").forEach((b) => b.onclick = () => openConv(b.dataset.id));
+}
+
+async function openConv(id) {
+  conversationId = id;
+  $("aside").classList.remove("open");
+  const turns = await (await fetch("/api/conversations/" + encodeURIComponent(id))).json();
+  $("#thread").innerHTML = "";
+  for (const t of turns) {
+    if (t.role === "user") addMsg("user", t.content, t.created_at);
+    else { const el = addMsg("bot", md(t.content, t.sources), t.created_at); el.querySelector(".after").innerHTML = sourcesHtml(t.sources); }
+  }
+  loadConvs();
+}
+
+async function send() {
+  const text = $("#input").value.trim();
+  if (!text || busy) return;
+  busy = true; $("#send").disabled = true; $("#input").value = ""; autosize();
+  addMsg("user", text);
+  const el = addMsg("bot", "");
+  const extra = el.querySelector(".extra"), bubble = el.querySelector(".bubble"), after = el.querySelector(".after");
+  extra.innerHTML = `<div class="status">Thinking…</div>`;
+  let answer = "", sources = [], memHtml = "";
+  try {
+    const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, conversationId, tzOffset }) });
+    conversationId = res.headers.get("x-conversation-id") || conversationId;
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const e = JSON.parse(line);
+        if (e.type === "status") extra.innerHTML = memHtml + `<div class="status">${esc(e.text)}</div>`;
+        else if (e.type === "memory") {
+          memHtml = `<div class="mem">${e.hits.length ? `<b>From memory${e.range ? ` · ${esc(e.range)}` : ""}:</b> ${e.hits.map((h) => `${esc(h.when)} — “${esc(h.question.slice(0, 110))}”`).join("<br>")}` : `<b>Memory:</b> no conversation found${e.range ? ` on ${esc(e.range)}` : ""}.`}</div>`;
+          extra.innerHTML = memHtml;
+        }
+        else if (e.type === "sources") { sources = e.sources; after.innerHTML = sourcesHtml(sources); }
+        else if (e.type === "token") { if (answer === "") extra.innerHTML = memHtml; answer += e.text; bubble.innerHTML = md(answer, sources); $("#log").scrollTop = $("#log").scrollHeight; }
+        else if (e.type === "done") { extra.innerHTML = memHtml; after.innerHTML = sourcesHtml(sources) + `<div class="timing">first token ${(e.timings.firstToken / 1000).toFixed(1)}s · total ${(e.timings.total / 1000).toFixed(1)}s${e.searched ? " · searched" : ""} · ${esc(e.models.join(" → "))}</div>`; }
+        else if (e.type === "error") { extra.innerHTML = memHtml; bubble.innerHTML = `<div class="err">${esc(e.text)}</div>`; }
+      }
+    }
+  } catch (err) { bubble.innerHTML = `<div class="err">Connection error: ${esc(String(err))}</div>`; }
+  busy = false; $("#send").disabled = !$("#input").value.trim();
+  loadConvs();
+}
+
+function autosize() { const t = $("#input"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; }
+$("#input").addEventListener("input", () => { autosize(); $("#send").disabled = busy || !$("#input").value.trim(); });
+$("#input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+$("#form").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+$("#new").onclick = () => { conversationId = null; emptyState(); loadConvs(); $("#input").focus(); };
+$("#reseed").onclick = async () => { await fetch("/api/seed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tzOffset }) }); loadConvs(); };
+
+(async () => {
+  const s = await (await fetch("/api/status")).json();
+  $("#llm").className = s.llm ? "ok" : "bad"; $("#search").className = s.search ? "ok" : "bad";
+  $("#clock").textContent = "Now: " + fmt(s.now);
+  emptyState(); loadConvs();
+})();
+</script>
+</body>
+</html>

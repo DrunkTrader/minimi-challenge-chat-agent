@@ -1,0 +1,11 @@
+[
+  { "id": "smalltalk", "turns": ["hey!"], "expect": { "search": false, "maxFirstTokenMs": 2500 } },
+  { "id": "recall-exact-date", "turns": ["What did I ask you on 3 November?"], "expect": { "include": ["Cursor", "Copilot"] } },
+  { "id": "recall-empty-date", "turns": ["What did I ask you on 1 November?"], "expect": { "search": false, "include": ["(no|don't have|do not have|couldn't find|can't find|not find).{0,60}(record|conversation|chat)"] } },
+  { "id": "recheck-exact-date", "turns": ["What did I ask you on 3 November? Is your answer still correct today?"], "expect": { "search": true, "citations": true, "include": ["Cursor", "Still true|Changed|Couldn't verify"] } },
+  { "id": "recheck-crm-monday", "turns": ["On Monday we shortlisted 5 CRM tools for a 20-person sales team. Has any of them changed pricing or shipped something big since?"], "expect": { "search": true, "citations": true, "include": ["HubSpot|Pipedrive|Zoho|Freshsales|Salesforce"] } },
+  { "id": "recheck-postgres-tuesday", "turns": ["Last Tuesday I asked you about Postgres hosting. Has any pricing changed since then?"], "expect": { "search": true, "citations": true, "include": ["Neon|Supabase"] } },
+  { "id": "fresh-fact", "turns": ["What is the latest LTS version of Node.js?"], "expect": { "search": true, "citations": true, "include": ["Node"] } },
+  { "id": "follow-up", "turns": ["Who makes the Pixel phones?", "When was the newest one released?"], "expect": { "search": true, "include": ["Pixel"] } },
+  { "id": "no-fake-memory", "turns": ["What did you recommend to me about Kubernetes last week?"], "expect": { "include": ["(no|don't have|do not have|couldn't find|not find).{0,60}(record|conversation|chat|mention)"] } }
+]

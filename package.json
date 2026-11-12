@@ -1,0 +1,26 @@
+{
+  "name": "minimi-chat-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A fast, honest chat agent with one tool (web search) and timestamped memory of what you asked and when.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "tsx src/index.ts",
+    "seed": "tsx scripts/seed.ts",
+    "eval": "tsx evals/run.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "chrono-node": "^2.7.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
