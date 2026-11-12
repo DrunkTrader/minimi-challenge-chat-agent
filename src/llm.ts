@@ -71,20 +71,27 @@ async function request(links: Link[], body: Record<string, unknown>, timeoutMs: 
       : l.model.includes("gpt-oss") ? { reasoning_effort: "low" }
       : l.model.includes("qwen3") ? { reasoning_effort: "none" }
       : l.provider === "gemini" && config.geminiReasoning !== "default" ? { reasoning_effort: config.geminiReasoning } : {};
+    // timeoutMs bounds the wait for response headers only; callers bound the body (a slow provider
+    // should cost seconds, not a minute, before the chain moves on).
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error(`no response in ${timeoutMs / 1000}s`)), timeoutMs);
     try {
       const res = await fetch(`${l.base}/chat/completions`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${l.key}` },
         body: JSON.stringify(shape(l, { model: l.model, ...body, ...extra })),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: controller.signal,
       });
-      if (res.ok) return { res, link: l };
+      clearTimeout(timer);
+      if (res.ok) return { res, link: l, controller };
       const text = (await res.text()).slice(0, 200);
       if (res.status === 400 && "reasoning_effort" in extra && !plain.has(id)) { plain.add(id); ordered.splice(i + 1, 0, l); continue; }
       if (res.status === 404 || /not.?found|decommission|does not exist|no longer available/i.test(text)) dead.add(id);
       else if (res.status === 429 || res.status >= 500) coolUntil.set(id, Date.now() + 60_000);
       errors.push(`${id} → ${res.status} ${text}`);
     } catch (e) {
+      clearTimeout(timer);
+      coolUntil.set(id, Date.now() + 60_000); // timed out or network error: skip it for a minute
       errors.push(`${id} → ${(e as Error).message}`);
     }
   }
@@ -94,40 +101,63 @@ async function request(links: Link[], body: Record<string, unknown>, timeoutMs: 
 export async function chatJson<T>(role: keyof typeof roles, messages: Msg[], maxTokens = 1000): Promise<{ data: T; model: string }> {
   let links = roles[role]();
   for (;;) {
-    const { res, link } = await request(links, { messages, temperature: 0, max_tokens: maxTokens, response_format: { type: "json_object" } }, 15_000);
+    const { res, link, controller } = await request(links, { messages, temperature: 0, max_tokens: maxTokens, response_format: { type: "json_object" } }, 12_000);
+    const bodyTimer = setTimeout(() => controller.abort(new Error("response body stalled")), 20_000);
     try {
       const json = (await res.json()) as { choices: { message: { content: string } }[] };
+      clearTimeout(bodyTimer);
       const text = json.choices?.[0]?.message?.content ?? "";
       const match = text.match(/\{[\s\S]*\}/);
       return { data: JSON.parse(match ? match[0] : text) as T, model: `${link.provider}:${link.model}` };
     } catch (e) {
-      // Truncated or non-JSON output: try the next model in the chain instead of failing the turn.
+      clearTimeout(bodyTimer);
+      // Truncated, stalled or non-JSON output: try the next model in the chain instead of failing the turn.
       links = links.slice(links.indexOf(link) + 1);
       if (!links.length) throw e;
     }
   }
 }
 
-// Generous budget: "thinking" models (e.g. Gemini Flash) spend part of it before the first visible token.
+/**
+ * Streams the answer. Each model gets 12 s to answer the request and 15 s to produce its first token;
+ * a model that misses either is cooled down and the next one in the chain takes over, so one slow
+ * free tier costs seconds, not a minute. Once text is flowing, a 20 s stall ends the answer with
+ * what arrived rather than hanging.
+ */
 export async function chatStream(role: keyof typeof roles, messages: Msg[], onToken: (t: string) => void, maxTokens = 4000) {
-  const { res, link } = await request(roles[role](), { messages, temperature: 0.2, max_tokens: maxTokens, stream: true }, 60_000);
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buf = "", full = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split("\n");
-    buf = lines.pop() ?? "";
-    for (const line of lines) {
-      const data = line.replace(/^data:\s*/, "").trim();
-      if (!line.startsWith("data:") || !data || data === "[DONE]") continue;
-      try {
-        const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-        if (delta) { full += delta; onToken(delta); }
-      } catch { /* partial keep-alive lines */ }
-    }
+  let links = roles[role]();
+  const errors: string[] = [];
+  while (links.length) {
+    const { res, link, controller } = await request(links, { messages, temperature: 0.2, max_tokens: maxTokens, stream: true }, 12_000);
+    const id = `${link.provider}:${link.model}`;
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "", full = "", timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => { clearTimeout(timer); timer = setTimeout(() => controller.abort(new Error("stream stalled")), full ? 20_000 : 15_000); };
+    try {
+      arm();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          const data = line.replace(/^data:\s*/, "").trim();
+          if (!line.startsWith("data:") || !data || data === "[DONE]") continue;
+          try {
+            const delta = JSON.parse(data).choices?.[0]?.delta?.content;
+            if (delta) { full += delta; onToken(delta); arm(); }
+          } catch { /* partial keep-alive lines */ }
+        }
+      }
+    } catch (e) {
+      errors.push(`${id} → ${(e as Error).message}`);
+      if (full) return { text: full, model: id }; // keep what the user already sees
+    } finally { clearTimeout(timer); }
+    if (full) return { text: full, model: id };
+    coolUntil.set(id, Date.now() + 60_000); // silent or stalled before the first token: next model
+    links = links.slice(links.indexOf(link) + 1);
   }
-  return { text: full, model: `${link.provider}:${link.model}` };
+  throw new Error(`All models failed: ${errors.join(" | ") || "empty responses"}`);
 }

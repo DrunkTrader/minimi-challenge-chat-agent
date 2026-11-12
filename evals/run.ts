@@ -43,7 +43,7 @@ for (const c of cases) {
   const fails: string[] = [];
   if (error) fails.push(`error: ${error.slice(0, 80)}`);
   if (c.expect.search !== undefined && searched !== c.expect.search) fails.push(`search=${searched}`);
-  if (c.expect.citations && !/\[\d+\]/.test(text)) fails.push("no citations");
+  if (c.expect.citations && !/\[\d+(?:\s*,\s*\d+)*\]/.test(text)) fails.push("no citations");
   for (const re of c.expect.include ?? []) if (!new RegExp(re, "i").test(text)) fails.push(`missing /${re.slice(0, 40)}/`);
   if (c.expect.maxFirstTokenMs && first > c.expect.maxFirstTokenMs) fails.push(`slow ${first}ms`);
   const model = models.at(-1) ?? "-";

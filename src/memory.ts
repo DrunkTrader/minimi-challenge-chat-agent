@@ -9,10 +9,12 @@ import { formatLocal, type DateRange } from "./dates.js";
 export type MemoryHit = { user: Turn; answer?: Turn; claims: Claim[]; sources: Source[] };
 export type Recall = { range: DateRange | null; hits: MemoryHit[]; recent: Turn[]; asked: boolean };
 
-const STOP = new Set("about above after again also asked been before being could does doing from have having here into just last like more most much only other over same should since some than that their them then there these they this those through today very what when where which while will with would your yours you’re week month monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december yesterday still correct answer answers changed change anything since ago earlier tell said told".split(" "));
+const STOP = new Set("about above after again also asked been before being could does doing from have having here into just last like more most much only other over same should since some than that their them then there these they this those through today very what when where which while will with would your yours you’re week month monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december yesterday still correct answer answers changed change anything since ago earlier tell said told you did didn ask asking back then remember recall discussed talked mentioned recommend recommended suggested give gave can could please know".split(" "));
 
+/** Topic words only: trailing punctuation stripped ("supabase." → "supabase"), chat filler dropped. */
 export const keywords = (text: string) =>
-  [...new Set(text.toLowerCase().match(/[a-z0-9][a-z0-9.+-]{2,}/g) ?? [])].filter((w) => !STOP.has(w) && !/^\d+$/.test(w)).slice(0, 8);
+  [...new Set((text.toLowerCase().match(/[a-z0-9][a-z0-9.+-]{2,}/g) ?? []).map((w) => w.replace(/[.+-]+$/, "")))]
+    .filter((w) => w.length > 2 && !STOP.has(w) && !/^\d+$/.test(w)).slice(0, 8);
 
 const REFERS_TO_PAST = /\b(i|we) (ask|asked|told|said|discussed|shortlisted|talked|mentioned|chose|picked)\b|\b(did|have) (i|we) (ask|say|mention|discuss)|\byou (said|told|answered|recommended|suggested)|\blast time\b|\bearlier\b|\bbefore\b|\bprevious(ly)?\b|\bremember\b|\bstill (correct|true|valid|right|accurate)\b|\bchanged since\b|\bsince then\b/i;
 

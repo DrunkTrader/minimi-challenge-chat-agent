@@ -353,7 +353,8 @@ function inline(t, sources) {
     .replace(/(\$[\d.,]+[^\s,;|)]*)\s*(?:→|-&gt;)\s*(\$[\d.,]+[^\s,;|)]*)/g, "<del>$1</del> → <ins>$2</ins>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
-    .replace(/\[(\d{1,2})\]/g, (m, n) => { const s = sources[n - 1]; return s ? `<a class="cite" href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title || s.url)}">${n}</a>` : `<span class="cite">${n}</span>`; });
+    // [2] and [1, 4] both become citation chips
+    .replace(/\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]/g, (m, list) => list.split(",").map((x) => { const n = +x.trim(), s = sources[n - 1]; return s ? `<a class="cite" href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title || s.url)}">${n}</a>` : `<span class="cite">${n}</span>`; }).join(""));
 }
 function block(src, sources) {
   const lines = src.split("\n"); let out = "", i = 0;

@@ -1,15 +1,17 @@
 # Eval results
 
-Run: 2026-11-12T12:10:51.930Z · 9/9 passed · first token p50 3117ms / p95 9426ms · total p50 3829ms
+Run: 2026-11-12T13:12:35.899Z · 11/11 passed · first token p50 3112ms / p95 5366ms · total p50 3335ms
 
 | case | pass | first token | total | answered by | notes |
 |---|---|---|---|---|---|
-| smalltalk | ✓ | 1216ms | 1231ms | groq:openai/gpt-oss-20b |  |
-| recall-exact-date | ✓ | 3117ms | 3497ms | gemini:gemini-3.5-flash |  |
-| recall-empty-date | ✓ | 1825ms | 2031ms | gemini:gemini-3.5-flash |  |
-| recheck-exact-date | ✓ | 2397ms | 3829ms | gemini:gemini-3.5-flash |  |
-| recheck-crm-monday | ✓ | 4995ms | 7843ms | gemini:gemini-3.5-flash |  |
-| recheck-postgres-tuesday | ✓ | 9426ms | 9927ms | gemini:gemini-flash-lite-latest |  |
-| fresh-fact | ✓ | 4464ms | 4608ms | gemini:gemini-flash-lite-latest |  |
-| follow-up | ✓ | 4473ms | 4735ms | gemini:gemini-flash-lite-latest |  |
-| no-fake-memory | ✓ | 2416ms | 2573ms | gemini:gemini-flash-lite-latest |  |
+| smalltalk | ✓ | 873ms | 890ms | groq:openai/gpt-oss-20b |  |
+| recall-exact-date | ✓ | 3112ms | 3335ms | gemini:gemini-flash-lite-latest |  |
+| recall-empty-date | ✓ | 3422ms | 3647ms | gemini:gemini-flash-lite-latest |  |
+| recheck-exact-date | ✓ | 3975ms | 5226ms | gemini:gemini-flash-lite-latest |  |
+| recheck-crm-monday | ✓ | 4185ms | 5820ms | gemini:gemini-flash-lite-latest |  |
+| recheck-postgres-tuesday | ✓ | 3324ms | 3770ms | gemini:gemini-flash-lite-latest |  |
+| fresh-fact | ✓ | 2946ms | 3064ms | gemini:gemini-flash-lite-latest |  |
+| follow-up | ✓ | 2407ms | 2521ms | gemini:gemini-flash-lite-latest |  |
+| recall-by-topic | ✓ | 2373ms | 2526ms | gemini:gemini-flash-lite-latest |  |
+| states-date-used | ✓ | 2640ms | 2845ms | gemini:gemini-flash-lite-latest |  |
+| no-fake-memory | ✓ | 5366ms | 5484ms | gemini:gemini-flash-lite-latest |  |

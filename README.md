@@ -1,5 +1,7 @@
 # minimi chat
 
+*My entry for the [minimi](https://www.projectminimi.com/) hiring challenge. It's not an official minimi product; the colours follow their site.*
+
 A chat agent with one tool, **web search**, that answers fast, cites its sources, and **remembers what you asked and when**, so it can answer *"Last Tuesday I asked you about Postgres hosting, has any pricing changed since?"* by diffing then vs now.
 
 ## Run it
@@ -34,13 +36,25 @@ Then ask:
 
 The demo prices are illustrative and recorded "as of" their date, so a re-check may well find they've changed. That is the point of re-checking. **Reset demo history** in the sidebar re-creates them relative to today.
 
+## Results
+
+`npm run eval` runs 11 end-to-end cases through the real agent (live models and search, a fresh database seeded with the demo history) and checks each one deterministically: did it search, did it cite, did it say "no record", did it state the date it used. Latest run on free tiers (Groq + Gemini + Tavily):
+
+| | |
+|---|---|
+| Passed | **11 / 11** |
+| First word, p50 / p95 | **3.1 s / 5.4 s** (small talk: 0.9 s) |
+| Total, p50 | 3.3 s |
+
+The per-case table, including which model answered each case, is in [evals/results.md](evals/results.md).
+
 ## Scripts
 
 | | |
 |---|---|
 | `npm run dev` | server + UI with reload |
 | `npm test` | date resolution + memory retrieval tests (no keys needed) |
-| `npm run eval` | end-to-end eval of 9 cases with real models + search → `evals/results.md` |
+| `npm run eval` | end-to-end eval of 11 cases with real models + search → `evals/results.md` |
 | `npm run seed` | re-create the demo history |
 | `npm run typecheck` | `tsc --noEmit` |
 

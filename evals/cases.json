@@ -7,5 +7,7 @@
   { "id": "recheck-postgres-tuesday", "turns": ["Last Tuesday I asked you about Postgres hosting. Has any pricing changed since then?"], "expect": { "search": true, "citations": true, "include": ["Neon|Supabase"] } },
   { "id": "fresh-fact", "turns": ["What is the latest LTS version of Node.js?"], "expect": { "search": true, "citations": true, "include": ["Node"] } },
   { "id": "follow-up", "turns": ["Who makes the Pixel phones?", "When was the newest one released?"], "expect": { "search": true, "include": ["Pixel"] } },
+  { "id": "recall-by-topic", "turns": ["Earlier I asked you about Supabase. What did you tell me back then?"], "expect": { "include": ["Supabase", "\\$25|25"] } },
+  { "id": "states-date-used", "turns": ["What did I ask you last Tuesday?"], "expect": { "include": ["Postgres", "(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,? \\d{1,2} [A-Z][a-z]{2}"] } },
   { "id": "no-fake-memory", "turns": ["What did you recommend to me about Kubernetes last week?"], "expect": { "include": ["(no|don't have|do not have|couldn't find|not find).{0,60}(record|conversation|chat|mention)"] } }
 ]
