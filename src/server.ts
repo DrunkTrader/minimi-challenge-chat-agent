@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { join, normalize, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { config, clock } from "./config.js";
 import { q } from "./db.js";
@@ -8,8 +10,18 @@ import { hasLlm } from "./llm.js";
 import { hasSearch } from "./search.js";
 import { seedDemo, isEmpty } from "./seed.js";
 
-/** Plain node:http: three JSON routes, one streaming route, one static page. */
-const page = () => readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+/** Plain node:http: JSON routes, one streaming route, the page and its static assets. */
+const PUBLIC = fileURLToPath(new URL("../public/", import.meta.url));
+const page = () => readFileSync(join(PUBLIC, "index.html"), "utf8");
+const TYPES: Record<string, string> = { ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2" };
+function asset(pathname: string, res: ServerResponse) {
+  const file = normalize(join(PUBLIC, decodeURIComponent(pathname)));
+  const type = TYPES[extname(file)];
+  if (!file.startsWith(join(PUBLIC, "assets")) || !type || !existsSync(file)) return false; // no traversal, known types only
+  res.writeHead(200, { "content-type": type, "cache-control": "public, max-age=3600" });
+  res.end(readFileSync(file));
+  return true;
+}
 
 async function body(req: IncomingMessage) {
   let raw = "";
@@ -25,6 +37,7 @@ export function start() {
     const url = new URL(req.url ?? "/", "http://x");
     try {
       if (req.method === "GET" && url.pathname === "/") { res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(page()); }
+      if (req.method === "GET" && url.pathname.startsWith("/assets/") && asset(url.pathname, res)) return;
       if (req.method === "GET" && url.pathname === "/api/status")
         return json(res, 200, { llm: hasLlm(), search: hasSearch(), now: clock.now().toISOString() });
       if (req.method === "GET" && url.pathname === "/api/conversations") return json(res, 200, q.conversations());

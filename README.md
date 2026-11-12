@@ -52,7 +52,9 @@ src/search.ts   the one tool: Tavily → Exa fallback, parallel, deduped, cached
 src/llm.ts      one OpenAI-compatible client for Groq / Gemini / OpenRouter with fallback chains
 src/db.ts       SQLite schema: turns (+FTS5), sources, claims, search_cache
 src/server.ts   node:http, NDJSON streaming
-public/         single-file UI
+public/         single-file UI: memory timeline, live pipeline tracker (memory → plan → search → answer → saved),
+                then-vs-now verdict blocks, source cards; public/assets: taste-skill motion layer + ascii-shade
+                effect (MIT, see public/assets/LICENSE-taste-skill)
 ```
 
 Design rationale: [DESIGN.md](DESIGN.md).
