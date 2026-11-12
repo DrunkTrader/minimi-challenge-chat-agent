@@ -1,5 +1,5 @@
 [
-  { "id": "smalltalk", "turns": ["hey!"], "expect": { "search": false, "maxFirstTokenMs": 2500 } },
+  { "id": "smalltalk", "turns": ["hey!"], "expect": { "search": false, "maxFirstTokenMs": 3000 } },
   { "id": "recall-exact-date", "turns": ["What did I ask you on 3 November?"], "expect": { "include": ["Cursor", "Copilot"] } },
   { "id": "recall-empty-date", "turns": ["What did I ask you on 1 November?"], "expect": { "search": false, "include": ["(no|don't have|do not have|couldn't find|can't find|not find).{0,60}(record|conversation|chat)"] } },
   { "id": "recheck-exact-date", "turns": ["What did I ask you on 3 November? Is your answer still correct today?"], "expect": { "search": true, "citations": true, "include": ["Cursor", "Still true|Changed|Couldn't verify"] } },

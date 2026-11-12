@@ -143,7 +143,9 @@ export async function runTurn(input: { conversationId: string; message: string; 
   let first = 0;
   let text = "";
   try {
-    const r = await chatStream("answer", messages, (tok) => { if (!first) first = ms(); emit({ type: "token", text: tok }); });
+    // Nothing to ground (small talk, no memory, no sources): the fast model answers, the strong one isn't needed.
+    const role = !results.length && !mem.asked && p.intent === "chat" ? "fast" : "answer";
+    const r = await chatStream(role, messages, (tok) => { if (!first) first = ms(); emit({ type: "token", text: tok }); });
     text = r.text; models.push(r.model);
   } catch (e) {
     emit({ type: "error", text: `The language model is unavailable right now: ${clip((e as Error).message, 300)}` });

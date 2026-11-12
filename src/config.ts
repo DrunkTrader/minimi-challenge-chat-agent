@@ -24,7 +24,7 @@ export const config = {
     exa: process.env.EXA_API_KEY || "",
   },
   models: {
-    groq: list(process.env.FAST_MODELS_GROQ, "openai/gpt-oss-20b,llama-3.3-70b-versatile,llama-3.1-8b-instant"),
+    groq: list(process.env.FAST_MODELS_GROQ, "openai/gpt-oss-20b,qwen/qwen3.8-27b,openai/gpt-oss-120b"),
     gemini: list(process.env.ANSWER_MODELS_GEMINI, "gemini-3.5-flash,gemini-flash-lite-latest,gemini-flash-latest"),
     openrouter: list(process.env.OPENROUTER_MODELS, "meta-llama/llama-3.3-70b-instruct:free"),
   },

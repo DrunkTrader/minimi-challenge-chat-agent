@@ -31,12 +31,18 @@ const coolUntil = new Map<string, number>(); // 429 / 503 ("high demand"): skip 
 async function request(links: Link[], body: Record<string, unknown>, timeoutMs: number) {
   const errors: string[] = [];
   const usable = links.filter((l) => !dead.has(`${l.provider}:${l.model}`));
-  const fresh = usable.filter((l) => (coolUntil.get(`${l.provider}:${l.model}`) ?? 0) < Date.now());
-  for (const l of fresh.length ? fresh : usable) {
+  const cooling = (l: Link) => (coolUntil.get(`${l.provider}:${l.model}`) ?? 0) > Date.now();
+  // Fresh models first; ones cooling down after a 429/503 stay as a last resort rather than being dropped.
+  const ordered = [...usable.filter((l) => !cooling(l)), ...usable.filter(cooling)];
+  const plain = new Set<string>(); // links that rejected the reasoning parameter: retried once without it
+  for (let i = 0; i < ordered.length; i++) {
+    const l = ordered[i];
     const id = `${l.provider}:${l.model}`;
     // Thinking costs latency: measured on Gemini 3.5 Flash, first token 43 s by default vs 1.4 s with
     // reasoning off. Answers are grounded in search results, so default to none (GEMINI_REASONING to change).
-    const extra = l.model.includes("gpt-oss") ? { reasoning_effort: "low" }
+    const extra = plain.has(id) ? {}
+      : l.model.includes("gpt-oss") ? { reasoning_effort: "low" }
+      : l.model.includes("qwen3") ? { reasoning_effort: "none" }
       : l.provider === "gemini" && config.geminiReasoning !== "default" ? { reasoning_effort: config.geminiReasoning } : {};
     try {
       const res = await fetch(`${l.base}/chat/completions`, {
@@ -47,6 +53,7 @@ async function request(links: Link[], body: Record<string, unknown>, timeoutMs: 
       });
       if (res.ok) return { res, link: l };
       const text = (await res.text()).slice(0, 200);
+      if (res.status === 400 && "reasoning_effort" in extra && !plain.has(id)) { plain.add(id); ordered.splice(i + 1, 0, l); continue; }
       if (res.status === 404 || /not.?found|decommission|does not exist|no longer available/i.test(text)) dead.add(id);
       else if (res.status === 429 || res.status >= 500) coolUntil.set(id, Date.now() + 60_000);
       errors.push(`${id} → ${res.status} ${text}`);
